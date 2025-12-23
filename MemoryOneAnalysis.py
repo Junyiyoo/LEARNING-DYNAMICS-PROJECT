@@ -57,7 +57,7 @@ class MemoryOneAnalysis:
                         transition_matrix[row_idx][col_idx] = prob_next_env_state * y
         return transition_matrix
 
-    def probability_first_round(self, strategies: List[str]) -> np.ndarray:
+    def probability_first_round(self, strategies: List[Strategy]) -> np.ndarray:
         """
         Calculates initial vector v0 (SI Eq. 9 & 10)
         Assumes starting in state s_1 (index 0).
@@ -75,7 +75,8 @@ class MemoryOneAnalysis:
             prob_action_profile = 1.0
             for k in range(self.game.player_number):
                 # P(s, empty_set)
-                Pk = self.game.memory_one_strategies(start_state, [], strategies[k], player_index=k)
+                Pk = strategies[k].get_cooperation_probability(start_state, [], k,
+                                                               self.game.player_number)
                 zk = Pk if first_round_action[k] else (1.0 - Pk)
                 prob_action_profile *= zk
 
@@ -85,15 +86,22 @@ class MemoryOneAnalysis:
 
         return V0
 
-    def calculate_frequency_vector_discounted(self, M: np.ndarray, v0: np.ndarray, delta: float) -> np.ndarray:
+    def calculate_frequency_vector(self, M: np.ndarray, v0: np.ndarray, delta: float) -> np.ndarray:
         """
         SI Eq. 11: v = (1-delta) * v0 * (I - delta * M)^-1
+        and case delta->1: v: (M'-I)v=0
         """
-        dim = M.shape[0]
-        I = np.eye(dim)
-        # check use of pseudoinverse
-        inv_part = np.linalg.inv(I - delta * M)
-        v = (1 - delta) * np.dot(v0, inv_part)
+        if delta == 1:
+            eigenvalues, eigenvectors = np.linalg.eig(M.T)
+            idx = np.argmin(np.abs(eigenvalues - 1.0))
+            v = np.real(eigenvectors[:, idx])
+            v = v/v.sum()
+        else:
+            dim = M.shape[0]
+            I = np.eye(dim)
+            # check use of pseudoinverse
+            inv_part = np.linalg.inv(I - delta * M)
+            v = (1 - delta) * np.dot(v0, inv_part)
         return v
 
     def calculate_payoff(self, v: np.ndarray) -> np.ndarray:
@@ -102,7 +110,7 @@ class MemoryOneAnalysis:
         """
         payoff = np.zeros(self.game.player_number)
 
-        for state in self.S:
+        for state in self.game.S:
             for i, action in enumerate(self.possible_action_combination):
                 # u(s, a)
                 payoff_matrix = self.game.payoff_function(state, action)
