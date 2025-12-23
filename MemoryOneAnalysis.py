@@ -16,8 +16,8 @@ class MemoryOneAnalysis:
         # This corresponds to the set 'A' in the paper.
         for j in range(self.number_possible_action_combination):
             # zfill ensures leading zeros for correct length
-            possible_action_combination_sting = (bin(j)[2:].zfill(self.game.player_number))
-            self.possible_action_combination.append(bin_to_bool(possible_action_combination_sting))
+            possible_action_combination_string = (bin(j)[2:].zfill(self.game.player_number))
+            self.possible_action_combination.append(bin_to_bool(possible_action_combination_string))
 
     def build_transition_matrix(self, strategies: List[Strategy]) -> np.ndarray:
         """
@@ -39,7 +39,7 @@ class MemoryOneAnalysis:
                         y = 1.0
                         for k in range(self.game.player_number):
                             # P_k(s, a)
-                            Pk = strategies[k].get_cooperation_probability(prev_state, prev_action, k,
+                            Pk = strategies[k].get_cooperation_probability(next_state, prev_action, k,
                                                                            self.game.player_number)
 
                             # Eq 8: y_k = P_k if action is C, 1-P_k if action is D
