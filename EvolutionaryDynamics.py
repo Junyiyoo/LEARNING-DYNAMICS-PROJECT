@@ -23,7 +23,7 @@ class EvolutionaryDynamics:
         for k in range(self.group_size+1):
             group_probabilities = self.group_probabilities(total_players, number_mutants_in_population, k)
             mutant_payoff += group_probabilities[0] * long_term_payoffs_per_k[k][0]
-            resident_payoff += group_probabilities[1] * (long_term_payoffs_per_k[k][1] if k < self.group_size else 0)
+            resident_payoff += group_probabilities[1] * long_term_payoffs_per_k[k][1]
         return mutant_payoff, resident_payoff
 
     def fixation_probability(self, total_players, resident_strategy: Strategy, mutant_strategy: Strategy):
