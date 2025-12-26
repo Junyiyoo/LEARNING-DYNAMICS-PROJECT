@@ -1,7 +1,5 @@
 from math import comb, exp
 
-import numpy as np
-
 from MemoryOneAnalysis import MemoryOneAnalysis
 from StochasticGame import StochasticGame
 from Strategy import Strategy
@@ -16,13 +14,25 @@ class EvolutionaryDynamics:
         self.group_size = group_size
         self.beta = beta
 
+
+
+
+
     def expected_payoffs(self, number_mutants_in_population: int, long_term_payoffs_per_k):
+        """
+
+        :param number_mutants_in_population: j
+        :param long_term_payoffs_per_k: payoff group
+        :return:
+        """
         mutant_payoff = 0.0
         resident_payoff = 0.0
         for k in range(self.group_size):  # loop from resident point of view
-            group_probabilities = self.group_probabilities(number_mutants_in_population, k)
-            mutant_payoff += group_probabilities[0] * long_term_payoffs_per_k[k + 1][0]
-            resident_payoff += group_probabilities[1] * long_term_payoffs_per_k[k][1]
+            group_probability_mutant = hypergeometric(self.game.population -1, number_mutants_in_population -1, self.group_size-1,k)
+            group_probability_resident = hypergeometric(self.game.population -1, number_mutants_in_population, self.group_size-1,k)
+
+            mutant_payoff += group_probability_mutant * long_term_payoffs_per_k[k + 1][0]
+            resident_payoff += group_probability_resident * long_term_payoffs_per_k[k][1]
         return mutant_payoff, resident_payoff
 
     def fixation_probability(self, resident_strategy: Strategy, mutant_strategy: Strategy):
@@ -39,7 +49,7 @@ class EvolutionaryDynamics:
                 self.analyzer.get_payoff(self.group_size, k, resident_strategy, mutant_strategy))
 
         for m in range(1, self.game.population):
-            mutant_payoff, resident_payoff = self.expected_payoffs(self.game.population, m, long_term_payoffs_per_k)
+            mutant_payoff, resident_payoff = self.expected_payoffs(m, long_term_payoffs_per_k)
             alphas.append(exp(-self.beta * (mutant_payoff - resident_payoff)))
         den = 1.0
         prod = 1.0
@@ -49,16 +59,13 @@ class EvolutionaryDynamics:
 
         return 1.0 / den
 
-    def group_probabilities(self, j, k):  # k from resident point of view
+def hypergeometric(N_pool, n_success_in_pool, n_draws, k_success):
+    if k_success < 0: return 0.0
 
-        """
-        Probability that a focal player sees k mutants in her group
-
-        :param j: Mutants in population
-        :param k: Mutant met
-        :return:
-        """
-        numerator_mutant = comb(j, k) * comb(self.game.population - j, self.group_size - k + 1)
-        numerator_resident = comb(j , k - 1) * comb(self.game.population - j + 1, self.group_size - k)
-        denominator = comb(self.game.population - 1, self.group_size - 1)
-        return numerator_mutant / denominator, numerator_resident / denominator
+    denom = comb(N_pool, n_draws)
+    if denom == 0: return 0.0
+    try:
+        num = comb(n_success_in_pool, k_success) * comb(N_pool - n_success_in_pool, n_draws - k_success)
+        return num / denom
+    except ValueError:
+        return 0.0

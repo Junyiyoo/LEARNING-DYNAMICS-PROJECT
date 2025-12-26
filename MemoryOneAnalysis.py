@@ -136,7 +136,9 @@ class MemoryOneAnalysis:
 
         if k_mutants == 0:
             payoff_mutant = None
+            payoff_resident = payoff[-1]
         elif k_mutants == group_size:
+            payoff_mutant = payoff[0]
             payoff_resident = None
         else:
             payoff_mutant = payoff[0]
