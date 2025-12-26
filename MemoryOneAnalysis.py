@@ -104,7 +104,7 @@ class MemoryOneAnalysis:
             v = (1 - delta) * np.dot(v0, inv_part)
         return v
 
-    def calculate_payoff(self, v: np.ndarray) -> np.ndarray:
+    def calculate_expected_payoff(self, v: np.ndarray) -> np.ndarray:
         """
         SI Eq. 12: pi = Sum(v_(s,a) * u(s,a))
         """
@@ -123,6 +123,20 @@ class MemoryOneAnalysis:
                 payoff += freq * np.array(payoff_matrix)  # Ensuring payoff_matrix is np array for element-wise addition
 
         return payoff
+
+    def get_payoff(self, group_size, k_mutants, resident_strategy: Strategy, mutant_strategy: Strategy) -> (float,float):
+        strategies = (
+                [mutant_strategy] * k_mutants +
+                [resident_strategy] * (group_size - k_mutants)
+        )
+        transition_matrix = self.build_transition_matrix(strategies)
+        V0 = self.probability_first_round(strategies)
+        v = self.calculate_frequency_vector(transition_matrix, V0, 1)
+        payoff = self.calculate_expected_payoff(v)
+
+        # payoff[0] = payoff of a mutant
+        # payoff[-1] = payoff of a resident
+        return payoff[0], payoff[-1]
 
 def bin_to_bool(mu_bin: str):
     """

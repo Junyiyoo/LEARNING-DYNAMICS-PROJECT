@@ -4,6 +4,8 @@ from abc import abstractmethod
 # Use standard typing instead
 from typing import List, Dict
 
+from Strategy import Strategy
+
 
 class StochasticGame:
     """
@@ -11,10 +13,10 @@ class StochasticGame:
     Assumes binary actions: True (Cooperation) / False (Defection).
     """
 
-    def __init__(self, num_players: int, num_states: int):
+    def __init__(self, num_players: int, num_states: int, possible_strategies: List[Strategy]):
         self.player_number = num_players
         self.S = list(range(num_states))
-
+        self.possible_strategies = possible_strategies
         # Action set: True=C, False=D (SI Section 2.1, iii)
         self.A = {s: (True, False) for s in self.S}
 
