@@ -10,13 +10,13 @@ class MemoryOneAnalysis:
     def __init__(self, game: StochasticGame):
         self.game = game
         self.possible_action_combination = []
-        self.number_possible_action_combination = 2 ** self.game.player_number
+        self.number_possible_action_combination = 2 ** self.game.population
 
         # Generate all possible action profiles (e.g., [C,C], [C,D]...)
         # This corresponds to the set 'A' in the paper.
         for j in range(self.number_possible_action_combination):
             # zfill ensures leading zeros for correct length
-            possible_action_combination_string = (bin(j)[2:].zfill(self.game.player_number))
+            possible_action_combination_string = (bin(j)[2:].zfill(self.game.population))
             self.possible_action_combination.append(bin_to_bool(possible_action_combination_string))
 
     def build_transition_matrix(self, strategies: List[Strategy]) -> np.ndarray:
@@ -25,7 +25,7 @@ class MemoryOneAnalysis:
         The transition probability is a product of environmental transition (Q)
         and strategy transitions (y_k).
         """
-        number_possible_chain_states = len(self.game.S) * 2 ** self.game.player_number
+        number_possible_chain_states = len(self.game.S) * 2 ** self.game.population
         transition_matrix = np.zeros((number_possible_chain_states, number_possible_chain_states))
 
         for prev_state in self.game.S:
@@ -37,10 +37,10 @@ class MemoryOneAnalysis:
                         # Calculate the probability that players choose 'new_action' given 'prev_action'
                         # This corresponds to the product term in SI Eq. 7: Product of y_k
                         y = 1.0
-                        for k in range(self.game.player_number):
+                        for k in range(self.game.population):
                             # P_k(s, a)
                             Pk = strategies[k].get_cooperation_probability(next_state, prev_action, k,
-                                                                           self.game.player_number)
+                                                                           self.game.population)
 
                             # Eq 8: y_k = P_k if action is C, 1-P_k if action is D
                             Yk = Pk if new_action[k] else (1.0 - Pk)
@@ -62,7 +62,7 @@ class MemoryOneAnalysis:
         Calculates initial vector v0 (SI Eq. 9 & 10)
         Assumes starting in state s_1 (index 0).
         """
-        number_possible_chain_states = len(self.game.S) * 2 ** self.game.player_number
+        number_possible_chain_states = len(self.game.S) * 2 ** self.game.population
         V0 = np.zeros(number_possible_chain_states)
 
         # Paper assumes "In the first round... P(s1, null) = 1" or similar initialization.
@@ -73,10 +73,10 @@ class MemoryOneAnalysis:
         for i, first_round_action in enumerate(self.possible_action_combination):
             # Logic for product of z_k (Eq 10)
             prob_action_profile = 1.0
-            for k in range(self.game.player_number):
+            for k in range(self.game.population):
                 # P(s, empty_set)
                 Pk = strategies[k].get_cooperation_probability(start_state, [], k,
-                                                               self.game.player_number)
+                                                               self.game.population)
                 zk = Pk if first_round_action[k] else (1.0 - Pk)
                 prob_action_profile *= zk
 
@@ -108,7 +108,7 @@ class MemoryOneAnalysis:
         """
         SI Eq. 12: pi = Sum(v_(s,a) * u(s,a))
         """
-        payoff = np.zeros(self.game.player_number)
+        payoff = np.zeros(self.game.population)
 
         for state in self.game.S:
             for i, action in enumerate(self.possible_action_combination):
@@ -134,9 +134,14 @@ class MemoryOneAnalysis:
         v = self.calculate_frequency_vector(transition_matrix, V0, 1)
         payoff = self.calculate_expected_payoff(v)
 
-        # payoff[0] = payoff of a mutant
-        # payoff[-1] = payoff of a resident
-        return payoff[0], payoff[-1]
+        if k_mutants == 0:
+            payoff_mutant = None
+        elif k_mutants == group_size:
+            payoff_resident = None
+        else:
+            payoff_mutant = payoff[0]
+            payoff_resident = payoff[-1]
+        return payoff_mutant, payoff_resident
 
 def bin_to_bool(mu_bin: str):
     """

@@ -14,7 +14,7 @@ class StochasticGame:
     """
 
     def __init__(self, num_players: int, num_states: int, possible_strategies: List[Strategy]):
-        self.player_number = num_players
+        self.population = num_players
         self.S = list(range(num_states))
         self.possible_strategies = possible_strategies
         # Action set: True=C, False=D (SI Section 2.1, iii)
@@ -26,7 +26,7 @@ class StochasticGame:
         # We initialize with zeros; subclasses must fill this.
         self.q = {(s, k): np.zeros(num_states)
                   for s in self.S
-                  for k in range(self.player_number + 1)}
+                  for k in range(self.population + 1)}
 
     @abstractmethod
     def payoff_function(self, state: int, actions: List[bool]) -> List[float]:

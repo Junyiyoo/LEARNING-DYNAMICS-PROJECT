@@ -17,14 +17,14 @@ class PrisonerDilemma(StochasticGame):
 
         # We fill self.q for every state s and every number of cooperators k
         for s in self.S:
-            for k in range(self.player_number + 1):
+            for k in range(self.population + 1):
                 # Init probs to 0
                 probs = np.zeros(len(self.S))
 
                 # Logic: If k=2 (all C), go to State 0 (Game 1)
                 # If k < 2 (someone defects), go to State 1 (Game 2)
                 # Note: This logic assumes the "Stochastic Game" from Fig 2a
-                if k == self.player_number:
+                if k == self.population:
                     probs[0] = 1.0  # Prob to go to State 0
                     probs[1] = 0.0
                 else:

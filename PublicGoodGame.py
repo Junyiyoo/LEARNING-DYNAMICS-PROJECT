@@ -16,10 +16,10 @@ class PublicGoodGame(StochasticGame):
         # (Assuming 2 states for simple example, though class allows more)
 
         for s in self.S:
-            for k in range(self.player_number + 1):
+            for k in range(self.population + 1):
                 probs = np.zeros(len(self.S))
 
-                if k == self.player_number:
+                if k == self.population:
                     probs[0] = 1.0  # Go to Best State
                 else:
                     if len(self.S) > 1:
@@ -35,7 +35,7 @@ class PublicGoodGame(StochasticGame):
         payoff = []
 
         total_pool = cooperating_players * self.cost_of_cooperation * self.rs[state]
-        share = total_pool / self.player_number
+        share = total_pool / self.population
 
         for action in actions:
             if action:  # Cooperator
