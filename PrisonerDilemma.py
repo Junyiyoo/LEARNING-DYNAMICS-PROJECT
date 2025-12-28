@@ -1,12 +1,13 @@
 import numpy as np
 
 from StochasticGame import StochasticGame
+from Strategy import AllC, AllD, Grim, pTFT, WSLS, Only1
 
 
 class PrisonerDilemma(StochasticGame):
     def __init__(self, bs: list[float], c: float):
-        super().__init__(num_players=2, num_states=len(bs))
-
+        possible_strategies = [AllC, AllD, Grim, pTFT, WSLS, Only1]
+        super().__init__(population=100, num_states=len(bs),possible_strategies=possible_strategies,groups_size=4)
         self.payoff_matrices = np.zeros((len(bs), 2, 2))
 
         # Setup Transition Function Q

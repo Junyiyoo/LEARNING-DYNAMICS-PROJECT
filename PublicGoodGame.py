@@ -5,7 +5,7 @@ from StochasticGame import StochasticGame
 
 class PublicGoodGame(StochasticGame):
     def __init__(self, rs: list[float], n_players: int, c: float = 1.0):
-        super().__init__(num_players=n_players, num_states=len(rs))
+        super().__init__(population=n_players, num_states=len(rs))
 
         self.rs = rs
         self.cost_of_cooperation = c

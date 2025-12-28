@@ -8,9 +8,14 @@ from Strategy import Strategy
 
 class MemoryOneAnalysis:
     def __init__(self, game: StochasticGame):
+
         self.game = game
         self.possible_action_combination = []
-        self.number_possible_action_combination = 2 ** self.game.population
+        self.number_possible_action_combination = 2 ** self.game.groups_size
+
+        # Internal cache for performance
+        self._group_payoff_cache = {}
+        self._transition_cache = {} # Save transition matrix of homogeneous population
 
         # Generate all possible action profiles (e.g., [C,C], [C,D]...)
         # This corresponds to the set 'A' in the paper.
@@ -19,13 +24,13 @@ class MemoryOneAnalysis:
             possible_action_combination_string = (bin(j)[2:].zfill(self.game.population))
             self.possible_action_combination.append(bin_to_bool(possible_action_combination_string))
 
-    def build_transition_matrix(self, strategies: List[Strategy]) -> np.ndarray:
+    def _build_transition_matrix(self, strategies: List[Strategy]) -> np.ndarray:
         """
         Constructs the Matrix M (SI Eq. 7)
         The transition probability is a product of environmental transition (Q)
         and strategy transitions (y_k).
         """
-        number_possible_chain_states = len(self.game.S) * 2 ** self.game.population
+        number_possible_chain_states = len(self.game.S) * 2 ** self.game.groups_size
         transition_matrix = np.zeros((number_possible_chain_states, number_possible_chain_states))
 
         for prev_state in self.game.S:
@@ -37,10 +42,9 @@ class MemoryOneAnalysis:
                         # Calculate the probability that players choose 'new_action' given 'prev_action'
                         # This corresponds to the product term in SI Eq. 7: Product of y_k
                         y = 1.0
-                        for k in range(self.game.population):
+                        for k in range(self.game.groups_size):
                             # P_k(s, a)
-                            Pk = strategies[k].get_cooperation_probability(next_state, prev_action, k,
-                                                                           self.game.population)
+                            Pk = strategies[k].get_cooperation_probability(next_state, prev_action, k, 4)
 
                             # Eq 8: y_k = P_k if action is C, 1-P_k if action is D
                             Yk = Pk if new_action[k] else (1.0 - Pk)
@@ -57,11 +61,21 @@ class MemoryOneAnalysis:
                         transition_matrix[row_idx][col_idx] = prob_next_env_state * y
         return transition_matrix
 
-    def probability_first_round(self, strategies: List[Strategy]) -> np.ndarray:
+    def _get_transition_matrix(self, strategies: List[Strategy]) -> np.ndarray:
+        if len(set(strategies)) == 1: # if we are calculating a transition matrix of a homogeneous population
+            key = strategies[0]
+            if key not in self._transition_cache:
+                self._transition_cache[key] = self._build_transition_matrix(strategies)
+            return self._transition_cache[key]
+        else:
+            return self._build_transition_matrix(strategies)
+    def _probability_first_round(self, strategies: List[Strategy]) -> np.ndarray:
         """
         Calculates initial vector v0 (SI Eq. 9 & 10)
         Assumes starting in state s_1 (index 0).
         """
+        if len(set(strategies)) == 1:
+            pass
         number_possible_chain_states = len(self.game.S) * 2 ** self.game.population
         V0 = np.zeros(number_possible_chain_states)
 
@@ -86,7 +100,7 @@ class MemoryOneAnalysis:
 
         return V0
 
-    def calculate_frequency_vector(self, M: np.ndarray, v0: np.ndarray, delta: float) -> np.ndarray:
+    def _calculate_frequency_vector(self, M: np.ndarray, v0: np.ndarray, delta: float) -> np.ndarray:
         """
         SI Eq. 11: v = (1-delta) * v0 * (I - delta * M)^-1
         and case delta->1: v: (M'-I)v=0
@@ -104,7 +118,7 @@ class MemoryOneAnalysis:
             v = (1 - delta) * np.dot(v0, inv_part)
         return v
 
-    def calculate_expected_payoff(self, v: np.ndarray) -> np.ndarray:
+    def _calculate_expected_payoff(self, v: np.ndarray) -> np.ndarray:
         """
         SI Eq. 12: pi = Sum(v_(s,a) * u(s,a))
         """
@@ -124,26 +138,76 @@ class MemoryOneAnalysis:
 
         return payoff
 
-    def get_payoff(self, group_size, k_mutants, resident_strategy: Strategy, mutant_strategy: Strategy) -> (float,float):
+    def _get_payoff(self, group_size, k_mutants, resident_strategy: Strategy, mutant_strategy: Strategy, need_cooperation = False) -> (float, float):
         strategies = (
                 [mutant_strategy] * k_mutants +
                 [resident_strategy] * (group_size - k_mutants)
         )
-        transition_matrix = self.build_transition_matrix(strategies)
-        V0 = self.probability_first_round(strategies)
-        v = self.calculate_frequency_vector(transition_matrix, V0, 1)
-        payoff = self.calculate_expected_payoff(v)
+        transition_matrix = self._get_transition_matrix(strategies)
+        V0 = self._probability_first_round(strategies)
+        v = self._calculate_frequency_vector(transition_matrix, V0, 1)
+        payoff = self._calculate_expected_payoff(v)
+
+        cooperation_rate = None
 
         if k_mutants == 0:
             payoff_mutant = None
             payoff_resident = payoff[-1]
+            coop = 0.0
+            for state in self.game.S:
+                for i, action in enumerate(self.possible_action_combination):
+                    idx = state * len(self.possible_action_combination) + i
+                    freq = v[idx]
+                    coop += freq * sum(action)
+            cooperation_rate = coop / self.game.groups_size
         elif k_mutants == group_size:
             payoff_mutant = payoff[0]
             payoff_resident = None
+            coop = 0.0
+            for state in self.game.S:
+                for i, action in enumerate(self.possible_action_combination):
+                    idx = state * len(self.possible_action_combination) + i
+                    freq = v[idx]
+                    coop += freq * sum(action)
+            cooperation_rate = coop / self.game.groups_size
         else:
             payoff_mutant = payoff[0]
             payoff_resident = payoff[-1]
-        return payoff_mutant, payoff_resident
+
+
+        return payoff_resident, payoff_mutant, cooperation_rate
+
+    def get_group_payoff(self, group_size, k_mutants, resident_strategy, mutant_strategy):
+        key = (id(resident_strategy), id(mutant_strategy), k_mutants)
+        if key not in self._group_payoff_cache:
+            self._group_payoff_cache[key] = self._get_payoff(
+                group_size, k_mutants, resident_strategy, mutant_strategy
+            )
+        return self._group_payoff_cache[key]
+
+    def cooperation_rate(self, strategy: Strategy, delta: float = 1.0) -> float:
+        """
+        Returns the long-run average cooperation rate when the whole population
+        uses the given strategy.
+        Corresponds to cvec in calcPay.m
+        """
+
+        # homogeneous population
+        strategies = [strategy] * self.game.population
+
+        # build Markov chain
+        M = self._transition_cache[strategy]
+        V0 = self._probability_first_round(strategies)
+        v = self._calculate_frequency_vector(M, V0, delta)
+
+        # compute cooperation rate
+        coop = 0.0
+        for state in self.game.S:
+            for i, action in enumerate(self.possible_action_combination):
+                idx = state * len(self.possible_action_combination) + i
+                freq = v[idx]
+                coop += freq * sum(action)
+        return coop / self.game.population
 
 def bin_to_bool(mu_bin: str):
     """

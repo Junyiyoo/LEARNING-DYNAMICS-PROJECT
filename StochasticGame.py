@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 from abc import abstractmethod
 # from parso.python.tree import String # REMOVE: unnecessary dependency
@@ -13,13 +15,13 @@ class StochasticGame:
     Assumes binary actions: True (Cooperation) / False (Defection).
     """
 
-    def __init__(self, num_players: int, num_states: int, possible_strategies: List[Strategy]):
-        self.population = num_players
+    def __init__(self, population: int, num_states: int, possible_strategies: List[Strategy], groups_size = 4):
+        self.population = population
         self.S = list(range(num_states))
         self.possible_strategies = possible_strategies
         # Action set: True=C, False=D (SI Section 2.1, iii)
         self.A = {s: (True, False) for s in self.S}
-
+        self.groups_size = groups_size
         # Transition function Q: S x A -> Delta(S) (SI Eq. 1 & 2)
         # Dictionary mapping (state, num_cooperators) -> [prob_s1, prob_s2, ...]
 
@@ -34,3 +36,6 @@ class StochasticGame:
         Calculates u(s, a) (SI Eq. 3 & 4)
         """
         raise NotImplementedError("Not implemented yet")
+
+    def get_random_strategy(self):
+        return random.choice(self.possible_strategies)
