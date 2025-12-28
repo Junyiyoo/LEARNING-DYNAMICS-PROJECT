@@ -34,8 +34,8 @@ for t in range(n_steps):
     coop_time_series.append(analyzer.cooperation_rate(resident))
 
     # 5. abbondanze
-    freq[resident] += 1
 plt.plot(coop_time_series)
 plt.xlabel("Evolutionary time step")
 plt.ylabel("Average cooperation")
 
+plt.show()

@@ -6,8 +6,8 @@ from Strategy import AllC, AllD, Grim, pTFT, WSLS, Only1
 
 class PrisonerDilemma(StochasticGame):
     def __init__(self, bs: list[float], c: float):
-        possible_strategies = [AllC, AllD, Grim, pTFT, WSLS, Only1]
-        super().__init__(population=100, num_states=len(bs),possible_strategies=possible_strategies,groups_size=4)
+        possible_strategies = [AllC(), AllD(), Grim(), pTFT(), WSLS(), Only1()]
+        super().__init__(population=100, num_states=len(bs),possible_strategies=possible_strategies,groups_size=2)
         self.payoff_matrices = np.zeros((len(bs), 2, 2))
 
         # Setup Transition Function Q

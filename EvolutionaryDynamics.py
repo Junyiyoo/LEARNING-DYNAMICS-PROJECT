@@ -40,7 +40,7 @@ class EvolutionaryDynamics:
         """
         alphas = []
         long_term_payoffs_per_k = []
-        for k in range(self.game.groups_size + 1):
+        for k in range(self.game.groups_size+1):
             long_term_payoffs_per_k.append(
                 self.analyzer.get_group_payoff(self.game.groups_size, k, resident_strategy, mutant_strategy))
 
