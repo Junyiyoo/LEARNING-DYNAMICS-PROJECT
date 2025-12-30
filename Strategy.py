@@ -1,66 +1,59 @@
-from abc import ABC, abstractmethod
+import random
 from typing import List
 
-class Strategy(ABC):
-    @abstractmethod
-    def get_cooperation_probability(self, state: int, prev_actions: List[bool], player_index: int, total_players: int) -> float:
-        pass
+import numpy as np
+from numpy.matlib import empty
 
-class AllD(Strategy):
-    def get_cooperation_probability(self, state, prev_actions, player_index, total_players):
-        return 0.0 # P(s,a) = 0
 
-class AllC(Strategy):
-    def get_cooperation_probability(self, state, prev_actions, player_index, total_players):
-        return 1.0 # P(s,a) = 1
+class Strategy:
+    """
+    Assumes binary actions: True (Cooperation) / False (Defection).
+    """
+    def __init__(self,states: int, players: int, epsilon : float):
+        self.epsilon = epsilon
+        self.states = states
+        self.players = players
+        # self.number_possible_strategies = states * len(self.possible_action) * (len(self.players) - 1)
+        self.no_prev_action = random.random()
+        self.strategy = []
 
-class Grim(Strategy):
-    def get_cooperation_probability(self, state, prev_actions, player_index, total_players):
-        num_cooperator = prev_actions.count(True) if prev_actions else 0
-        # Trigger strategy: cooperate as long as everybody has cooperated (Table S1)
-        if not prev_actions:  # First round (encoded as empty history or special state)
-            return 1.0
-        else:
-            if total_players == num_cooperator:
-                return 1.0  # Everyone cooperated
-            else:
-                return 0.0  # Someone defected -> switch to Defect forever
-class pTFT(Strategy):
-    def get_cooperation_probability(self, state, prev_actions, player_index, total_players):
-        num_cooperator = prev_actions.count(True) if prev_actions else 0
-        # Proportional Tit-for-Tat (Table S1)
-        # Cooperate with probability k / (n-1), where k is cooperating *co-players*.
+
+    def create_strategy(self):
+        strategy = np.zeros((self.states, self.players + 1))
+        for s in range(self.states):
+            for b in range(self.players + 1):
+                strategy[s][b] = random.random()
+        return strategy
+
+    def get_cooperation_probability(self, state: int, prev_actions: List[int]):
+        if empty(prev_actions):
+            return self.no_prev_action
+        number_of_cooperator = prev_actions.count(1)
+        return self._apply_execution_error(self.strategy[state][number_of_cooperator])
+
+
+    def _apply_execution_error(self, p: float) -> float:
+        return (1 - self.epsilon) * p + self.epsilon * (1 - p)
+
+class StrategyPrisonerDilemma(Strategy):
+    def __init__(self, states: int, players: int, epsilon: float, player_id: int):
+        self.player_id = player_id
+        self.opponents = players-1
+        super().__init__(states, self.opponents, epsilon)
+        defective_strategy = self.create_strategy()
+        cooperation_strategy = self.create_strategy()
+        self. strategy = [defective_strategy, cooperation_strategy]
+
+    def get_cooperation_probability(self, state: int, prev_actions: List[int]):
         if not prev_actions:
-            return 1.0
-        else:
-            # We must subtract self's action to get co-players count.
-            # Assuming we pass 'player_index' to this function:
-            self_action = prev_actions[player_index]
-            k_others = num_cooperator - (1 if self_action else 0)
-            if total_players > 1:
-                return k_others / (total_players - 1)
-            return 1.0  # Fallback for single player (undefined in paper)
-
-class WSLS(Strategy):
-    def get_cooperation_probability(self, state, prev_actions, player_index, total_players):
-        num_cooperator = prev_actions.count(True) if prev_actions else 0
-        # Win-Stay Lose-Shift (Table S1)
-        # Cooperate if everyone used the same action (all C or all D)
-        if not prev_actions:
-            return 1.0
-        else:
-            if total_players == num_cooperator:  # All C
-                return 1.0
-            elif num_cooperator == 0:  # All D (Previous payoff was P or 0, usually considered "Win" in WSLS logic if P > S)
-                # Note: Standard WSLS cooperates after mutual D.
-                return 1.0
-            else:
-                return 0.0
-
-class Only1(Strategy):
-    def get_cooperation_probability(self, state, prev_actions, player_index, total_players):
-        # State-dependent strategy (Table S1)
-        if state == 0:  # Assuming 0 is s_1
-            return 1.0
-        else:
-            return 0.0
+            return self.no_prev_action
+        self_action = prev_actions[self.player_id]
+        prev_actions = prev_actions.copy()
+        prev_actions.remove(self_action)
+        opponents_actions = prev_actions
+        number_of_cooperator = opponents_actions.count(1)
+        return self._apply_execution_error(self.strategy[self_action][state][number_of_cooperator])
+class StrategyPublicGoodGame(Strategy):
+    def __init__(self, states: int, players: int, epsilon: float):
+        super().__init__(states, players, epsilon)
+        self.strategy = self.create_strategy()

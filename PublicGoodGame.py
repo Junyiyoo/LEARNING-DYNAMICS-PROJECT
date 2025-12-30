@@ -15,14 +15,14 @@ class PublicGoodGame(StochasticGame):
         # Otherwise, go to State 1 (Low r).
         # (Assuming 2 states for simple example, though class allows more)
 
-        for s in self.S:
+        for s in self.num_states:
             for k in range(self.population + 1):
-                probs = np.zeros(len(self.S))
+                probs = np.zeros(len(self.num_states))
 
                 if k == self.population:
                     probs[0] = 1.0  # Go to Best State
                 else:
-                    if len(self.S) > 1:
+                    if len(self.num_states) > 1:
                         probs[1] = 1.0  # Go to Worse State
                     else:
                         probs[0] = 1.0  # Fallback if only 1 state

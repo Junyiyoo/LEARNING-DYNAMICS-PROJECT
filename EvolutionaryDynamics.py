@@ -6,11 +6,11 @@ from Strategy import Strategy
 
 
 class EvolutionaryDynamics:
-    def __init__(self, game: StochasticGame, analyzer: MemoryOneAnalysis,beta):
+    def __init__(self, game: StochasticGame, analyzer: MemoryOneAnalysis,beta, population_size = 100):
         self.game = game
         self.analyzer = analyzer
+        self.population_size = population_size
         self.possible_action_combination = []
-        self.number_possible_action_combination = len(self.game.possible_strategies) ** self.game.population
         self.beta = beta
 
 
@@ -23,9 +23,9 @@ class EvolutionaryDynamics:
         """
         mutant_payoff = 0.0
         resident_payoff = 0.0
-        for k in range(self.game.groups_size):  # loop from resident point of view
-            group_probability_mutant = hypergeometric(self.game.population -1, number_mutants_in_population -1, self.game.groups_size-1,k)
-            group_probability_resident = hypergeometric(self.game.population -1, number_mutants_in_population,self.game.groups_size-1,k)
+        for k in range(self.game.player_number):  # loop from resident point of view
+            group_probability_mutant = hypergeometric(self.population_size -1, number_mutants_in_population -1, self.game.player_number-1,k)
+            group_probability_resident = hypergeometric(self.population_size -1, number_mutants_in_population,self.game.player_number-1,k)
 
             mutant_payoff += group_probability_mutant * long_term_payoffs_per_k[k + 1][0]
             resident_payoff += group_probability_resident * long_term_payoffs_per_k[k][1]
@@ -40,11 +40,11 @@ class EvolutionaryDynamics:
         """
         alphas = []
         long_term_payoffs_per_k = []
-        for k in range(self.game.groups_size+1):
+        for k in range(self.game.player_number+1):
             long_term_payoffs_per_k.append(
-                self.analyzer.get_group_payoff(self.game.groups_size, k, resident_strategy, mutant_strategy))
+                self.analyzer.get_group_payoff(self.game.player_number, k, resident_strategy, mutant_strategy))
 
-        for m in range(1, self.game.population):
+        for m in range(1, self.population_size+1):
             mutant_payoff, resident_payoff = self.expected_payoffs(m, long_term_payoffs_per_k)
             alphas.append(exp(-self.beta * (mutant_payoff - resident_payoff)))
         den = 1.0

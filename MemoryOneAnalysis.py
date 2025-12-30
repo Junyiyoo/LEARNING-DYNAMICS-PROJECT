@@ -11,7 +11,7 @@ class MemoryOneAnalysis:
 
         self.game = game
         self.possible_action_combination = []
-        self.number_possible_action_combination = 2 ** self.game.groups_size
+        self.number_possible_action_combination = 2 ** self.game.player_number
 
         # Internal cache for performance
         self._group_payoff_cache = {}
@@ -21,7 +21,7 @@ class MemoryOneAnalysis:
         # This corresponds to the set 'A' in the paper.
         for j in range(self.number_possible_action_combination):
             # zfill ensures leading zeros for correct length
-            possible_action_combination_string = (bin(j)[2:].zfill(self.game.groups_size))
+            possible_action_combination_string = (bin(j)[2:].zfill(self.game.player_number))
             self.possible_action_combination.append(bin_to_bool(possible_action_combination_string))
 
     def _build_transition_matrix(self, strategies: List[Strategy]) -> np.ndarray:
@@ -30,11 +30,11 @@ class MemoryOneAnalysis:
         The transition probability is a product of environmental transition (Q)
         and strategy transitions (y_k).
         """
-        number_possible_chain_states = len(self.game.S) * 2 ** self.game.groups_size
+        number_possible_chain_states = self.game.num_states * 2 ** self.game.player_number
         transition_matrix = np.zeros((number_possible_chain_states, number_possible_chain_states))
 
-        for prev_state in self.game.S:
-            for next_state in self.game.S:
+        for prev_state in range(self.game.num_states):
+            for next_state in range(self.game.num_states):
                 for i, prev_action in enumerate(self.possible_action_combination):
 
                     for j, new_action in enumerate(self.possible_action_combination):
@@ -42,9 +42,9 @@ class MemoryOneAnalysis:
                         # Calculate the probability that players choose 'new_action' given 'prev_action'
                         # This corresponds to the product term in SI Eq. 7: Product of y_k
                         y = 1.0
-                        for k in range(self.game.groups_size):
+                        for k in range(self.game.player_number):
                             # P_k(s, a)
-                            Pk = strategies[k].get_cooperation_probability(next_state, prev_action, k, 4)
+                            Pk = strategies[k].get_cooperation_probability(next_state, prev_action)
 
                             # Eq 8: y_k = P_k if action is C, 1-P_k if action is D
                             Yk = Pk if new_action[k] else (1.0 - Pk)
@@ -62,7 +62,7 @@ class MemoryOneAnalysis:
         return transition_matrix
 
     def _get_transition_matrix(self, strategies: List[Strategy]) -> np.ndarray:
-        if len(set(strategies)) == 1: # if we are calculating a transition matrix of a homogeneous population
+        if len(set(type(strategies[k]) for k in range(len(strategies)))) == 1: # if we are calculating a transition matrix of a homogeneous population
             key = strategies[0]
             if key not in self._transition_cache:
                 self._transition_cache[key] = self._build_transition_matrix(strategies)
@@ -76,7 +76,7 @@ class MemoryOneAnalysis:
         """
         if len(set(strategies)) == 1:
             pass
-        number_possible_chain_states = len(self.game.S) * 2 ** self.game.groups_size
+        number_possible_chain_states = self.game.num_states * 2 ** self.game.player_number
         V0 = np.zeros(number_possible_chain_states)
 
         # Paper assumes "In the first round... P(s1, null) = 1" or similar initialization.
@@ -87,10 +87,9 @@ class MemoryOneAnalysis:
         for i, first_round_action in enumerate(self.possible_action_combination):
             # Logic for product of z_k (Eq 10)
             prob_action_profile = 1.0
-            for k in range(self.game.groups_size):
+            for k in range(self.game.player_number):
                 # P(s, empty_set)
-                Pk = strategies[k].get_cooperation_probability(start_state, [], k,
-                                                               self.game.groups_size)
+                Pk = strategies[k].get_cooperation_probability(start_state, [])
                 zk = Pk if first_round_action[k] else (1.0 - Pk)
                 prob_action_profile *= zk
 
@@ -122,9 +121,9 @@ class MemoryOneAnalysis:
         """
         SI Eq. 12: pi = Sum(v_(s,a) * u(s,a))
         """
-        payoff = np.zeros(self.game.groups_size)
+        payoff = np.zeros(self.game.player_number)
 
-        for state in self.game.S:
+        for state in range(self.game.num_states):
             for i, action in enumerate(self.possible_action_combination):
                 # u(s, a)
                 payoff_matrix = self.game.payoff_function(state, action)
@@ -154,22 +153,22 @@ class MemoryOneAnalysis:
             payoff_mutant = 0
             payoff_resident = payoff[-1]
             coop = 0.0
-            for state in self.game.S:
+            for state in range(self.game.num_states):
                 for i, action in enumerate(self.possible_action_combination):
                     idx = state * len(self.possible_action_combination) + i
                     freq = v[idx]
                     coop += freq * sum(action)
-            cooperation_rate = coop / self.game.groups_size
+            cooperation_rate = coop / self.game.player_number
         elif k_mutants == group_size:
             payoff_mutant = payoff[0]
             payoff_resident = 0
             coop = 0.0
-            for state in self.game.S:
+            for state in range(self.game.num_states):
                 for i, action in enumerate(self.possible_action_combination):
                     idx = state * len(self.possible_action_combination) + i
                     freq = v[idx]
                     coop += freq * sum(action)
-            cooperation_rate = coop / self.game.groups_size
+            cooperation_rate = coop / self.game.player_number
         else:
             payoff_mutant = payoff[0]
             payoff_resident = payoff[-1]
@@ -193,7 +192,7 @@ class MemoryOneAnalysis:
         """
 
         # homogeneous population
-        strategies = [strategy] * self.game.population
+        strategies = [strategy] * self.game.player_number
 
         # build Markov chain
         M = self._transition_cache[strategy]
@@ -202,12 +201,12 @@ class MemoryOneAnalysis:
 
         # compute cooperation rate
         coop = 0.0
-        for state in self.game.S:
+        for state in range(self.game.num_states):
             for i, action in enumerate(self.possible_action_combination):
                 idx = state * len(self.possible_action_combination) + i
                 freq = v[idx]
                 coop += freq * sum(action)
-        return coop / self.game.population
+        return coop / self.game.player_number
 
 def bin_to_bool(mu_bin: str):
     """

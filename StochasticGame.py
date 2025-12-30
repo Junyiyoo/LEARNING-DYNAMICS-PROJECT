@@ -15,20 +15,20 @@ class StochasticGame:
     Assumes binary actions: True (Cooperation) / False (Defection).
     """
 
-    def __init__(self, population: int, num_states: int, possible_strategies: List[Strategy], groups_size = 4):
-        self.population = population
-        self.S = list(range(num_states))
-        self.possible_strategies = possible_strategies
+    def __init__(self, player_number : int, num_states: int, epsilon: float):
+        self.player_number = player_number
+        self.epsilon = epsilon
+        self.num_states = num_states
         # Action set: True=C, False=D (SI Section 2.1, iii)
-        self.A = {s: (True, False) for s in self.S}
-        self.groups_size = groups_size
+        self.A = {s: (True, False) for s in range(self.num_states)}
         # Transition function Q: S x A -> Delta(S) (SI Eq. 1 & 2)
         # Dictionary mapping (state, num_cooperators) -> [prob_s1, prob_s2, ...]
 
         # We initialize with zeros; subclasses must fill this.
         self.q = {(s, k): np.zeros(num_states)
-                  for s in self.S
-                  for k in range(self.population + 1)}
+                  for s in range(self.num_states)
+                  for k in range(self.player_number + 1)}
+
 
     @abstractmethod
     def payoff_function(self, state: int, actions: List[bool]) -> List[float]:
@@ -37,5 +37,18 @@ class StochasticGame:
         """
         raise NotImplementedError("Not implemented yet")
 
-    def get_random_strategy(self):
-        return random.choice(self.possible_strategies)
+
+
+def bin_to_bool(mu_bin: str):
+    """
+   Convert a binary string into a list of bool.
+
+   Each '0' is mapped to False, and each '1' is mapped to True.
+   """
+    bools = []
+    for bit in mu_bin:
+        if bit == '0':
+            bools.append(False)
+        if bit == '1':
+            bools.append(True)
+    return bools
