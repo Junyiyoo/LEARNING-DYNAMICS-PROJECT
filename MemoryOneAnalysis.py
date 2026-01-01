@@ -44,7 +44,7 @@ class MemoryOneAnalysis:
                         y = 1.0
                         for k in range(self.game.player_number):
                             # P_k(s, a)
-                            Pk = strategies[k].get_cooperation_probability(next_state, prev_action)
+                            Pk = strategies[k].get_cooperation_probability(next_state, prev_action,k)
 
                             # Eq 8: y_k = P_k if action is C, 1-P_k if action is D
                             Yk = Pk if new_action[k] else (1.0 - Pk)
@@ -62,8 +62,8 @@ class MemoryOneAnalysis:
         return transition_matrix
 
     def _get_transition_matrix(self, strategies: List[Strategy]) -> np.ndarray:
-        if len(set(type(strategies[k]) for k in range(len(strategies)))) == 1: # if we are calculating a transition matrix of a homogeneous population
-            key = strategies[0]
+        if len(set(strategies[k].strategy_ID for k in range(len(strategies)))) == 1: # if we are calculating a transition matrix of a homogeneous population
+            key = strategies[0].strategy_ID
             if key not in self._transition_cache:
                 self._transition_cache[key] = self._build_transition_matrix(strategies)
             return self._transition_cache[key]
@@ -89,7 +89,7 @@ class MemoryOneAnalysis:
             prob_action_profile = 1.0
             for k in range(self.game.player_number):
                 # P(s, empty_set)
-                Pk = strategies[k].get_cooperation_probability(start_state, [])
+                Pk = strategies[k].get_cooperation_probability(start_state, [],k)
                 zk = Pk if first_round_action[k] else (1.0 - Pk)
                 prob_action_profile *= zk
 
@@ -195,7 +195,7 @@ class MemoryOneAnalysis:
         strategies = [strategy] * self.game.player_number
 
         # build Markov chain
-        M = self._transition_cache[strategy]
+        M = self._get_transition_matrix(strategies)
         V0 = self._probability_first_round(strategies)
         v = self._calculate_frequency_vector(M, V0, delta)
 

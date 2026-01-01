@@ -7,7 +7,6 @@ class PrisonerDilemma(StochasticGame):
     def __init__(self, bs: list[float], c: float, epsilon: float):
         super().__init__(player_number=2, num_states=len(bs),epsilon=epsilon)
         self.payoff_matrices = np.zeros((len(bs), 2, 2))
-        print(self.num_states)
         # Setup Transition Function Q
         # Example from paper (Fig 2a):
         # State 1 (Index 0) -> High Benefit
@@ -55,5 +54,5 @@ class PrisonerDilemma(StochasticGame):
         payoff_2 = self.payoff_matrices[state][idx1, idx0]  # Symmetric
         return [float(payoff_1), float(payoff_2)]
 
-    def generate_strategy(self, player_id):
-        return StrategyPrisonerDilemma(self.num_states, self.player_number, self.epsilon, player_id)
+    def generate_strategy(self):
+        return StrategyPrisonerDilemma(self.num_states, self.player_number, self.epsilon)

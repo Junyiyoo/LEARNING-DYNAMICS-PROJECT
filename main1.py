@@ -9,7 +9,7 @@ from PrisonerDilemma import PrisonerDilemma
 from Strategy import StrategyPrisonerDilemma
 
 n_steps = 5000
-n_runs = 5
+n_runs = 100
 
 
 
@@ -18,17 +18,18 @@ game = PrisonerDilemma([2.0],1.0, 0.001)
 coop_time_series = []
 freq = np.zeros(8)
 analyzer = MemoryOneAnalysis(game)
-ev = EvolutionaryDynamics(game, analyzer,0.4,)
+ev = EvolutionaryDynamics(game, analyzer,1)
 
 coop_time_series_mean = np.zeros(n_steps)
 all_runs_data = []
 
 for run in range(n_runs):
-    resident = game.generate_strategy(0)
+    resident = game.generate_strategy()
+    resident.set_allways_defect()
     run_data = []
 
     for t in range(n_steps):
-        mutant = game.generate_strategy(1)
+        mutant = game.generate_strategy()
         rho = ev.fixation_probability(resident, mutant)
 
         if random() < rho:
