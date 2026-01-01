@@ -6,7 +6,7 @@ from Strategy import Strategy
 
 
 class EvolutionaryDynamics:
-    def __init__(self, game: StochasticGame, analyzer: MemoryOneAnalysis,beta, population_size = 100):
+    def __init__(self, game: StochasticGame, analyzer: MemoryOneAnalysis,beta, population_size = 500):
         self.game = game
         self.analyzer = analyzer
         self.population_size = population_size

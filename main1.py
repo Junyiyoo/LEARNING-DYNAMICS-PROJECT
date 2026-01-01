@@ -1,15 +1,14 @@
 from random import random
-
+from tqdm import tqdm
 import numpy as np
 from matplotlib import pyplot as plt
 
 from EvolutionaryDynamics import EvolutionaryDynamics
 from MemoryOneAnalysis import MemoryOneAnalysis
 from PrisonerDilemma import PrisonerDilemma
-from Strategy import StrategyPrisonerDilemma
 
 n_steps = 5000
-n_runs = 100
+n_runs = 50
 
 
 
@@ -23,7 +22,7 @@ ev = EvolutionaryDynamics(game, analyzer,1)
 coop_time_series_mean = np.zeros(n_steps)
 all_runs_data = []
 
-for run in range(n_runs):
+for run in tqdm(range(n_runs)):
     resident = game.generate_strategy()
     resident.set_allways_defect()
     run_data = []
@@ -42,7 +41,7 @@ for run in range(n_runs):
 
     # Aggiorna media online
     coop_time_series_mean += (run_data - coop_time_series_mean) / (run + 1)
-
+analyzer.print_cache_statistics()
 # Calcola deviazione standard
 all_runs_data = np.array(all_runs_data)
 coop_time_series_std = np.std(all_runs_data, axis=0)

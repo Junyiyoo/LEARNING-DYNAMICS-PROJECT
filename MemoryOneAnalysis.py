@@ -15,8 +15,9 @@ class MemoryOneAnalysis:
 
         # Internal cache for performance
         self._group_payoff_cache = {}
-        self._transition_cache = {} # Save transition matrix of homogeneous population
-
+        self._transition_cache = {}  # Save transition matrix of homogeneous population
+        self._probability_first_round_cache = {}
+        self.cache_tracker = np.zeros(5)
         # Generate all possible action profiles (e.g., [C,C], [C,D]...)
         # This corresponds to the set 'A' in the paper.
         for j in range(self.number_possible_action_combination):
@@ -44,7 +45,7 @@ class MemoryOneAnalysis:
                         y = 1.0
                         for k in range(self.game.player_number):
                             # P_k(s, a)
-                            Pk = strategies[k].get_cooperation_probability(next_state, prev_action,k)
+                            Pk = strategies[k].get_cooperation_probability(next_state, prev_action, k)
 
                             # Eq 8: y_k = P_k if action is C, 1-P_k if action is D
                             Yk = Pk if new_action[k] else (1.0 - Pk)
@@ -62,20 +63,18 @@ class MemoryOneAnalysis:
         return transition_matrix
 
     def _get_transition_matrix(self, strategies: List[Strategy]) -> np.ndarray:
-        if len(set(strategies[k].strategy_ID for k in range(len(strategies)))) == 1: # if we are calculating a transition matrix of a homogeneous population
+        if len(set(strategies[k].strategy_ID for k in range(len(
+                strategies)))) == 1:  # if we are calculating a transition matrix of a homogeneous population
             key = strategies[0].strategy_ID
             if key not in self._transition_cache:
                 self._transition_cache[key] = self._build_transition_matrix(strategies)
+            else:
+                self.cache_tracker[1] += 1
             return self._transition_cache[key]
         else:
             return self._build_transition_matrix(strategies)
-    def _probability_first_round(self, strategies: List[Strategy]) -> np.ndarray:
-        """
-        Calculates initial vector v0 (SI Eq. 9 & 10)
-        Assumes starting in state s_1 (index 0).
-        """
-        if len(set(strategies)) == 1:
-            pass
+
+    def _build_probability_first_round(self, strategies: List[Strategy]) -> np.ndarray:
         number_possible_chain_states = self.game.num_states * 2 ** self.game.player_number
         V0 = np.zeros(number_possible_chain_states)
 
@@ -89,32 +88,50 @@ class MemoryOneAnalysis:
             prob_action_profile = 1.0
             for k in range(self.game.player_number):
                 # P(s, empty_set)
-                Pk = strategies[k].get_cooperation_probability(start_state, [],k)
+                Pk = strategies[k].get_cooperation_probability(start_state, [], k)
                 zk = Pk if first_round_action[k] else (1.0 - Pk)
                 prob_action_profile *= zk
 
             # Index for (State 1, Action Profile i)
             idx = start_state * len(self.possible_action_combination) + i
             V0[idx] = prob_action_profile
-
         return V0
+
+    def _probability_first_round(self, strategies: List[Strategy]) -> np.ndarray:
+        """
+        Calculates initial vector v0 (SI Eq. 9 & 10)
+        Assumes starting in state s_1 (index 0).
+        """
+        if len(set(strategies[k].strategy_ID for k in range(len(
+                strategies)))) == 1:  # if we are calculating a transition matrix of a homogeneous population
+            key = strategies[0].strategy_ID
+            if key not in self._probability_first_round_cache.keys():
+                self._probability_first_round_cache[key] = self._build_probability_first_round(strategies)
+            else:
+                self.cache_tracker[4] += 1
+            return self._probability_first_round_cache[key]
+        else:
+            V0 = self._build_probability_first_round(strategies)
+            return V0
 
     def _calculate_frequency_vector(self, M: np.ndarray, v0: np.ndarray, delta: float) -> np.ndarray:
         """
         SI Eq. 11: v = (1-delta) * v0 * (I - delta * M)^-1
         and case delta->1: v: (M'-I)v=0
         """
+
         if delta == 1:
             eigenvalues, eigenvectors = np.linalg.eig(M.T)
             idx = np.argmin(np.abs(eigenvalues - 1.0))
             v = np.real(eigenvectors[:, idx])
-            v = v/v.sum()
+            v = v / v.sum()
         else:
             dim = M.shape[0]
             I = np.eye(dim)
             # check use of pseudoinverse
             inv_part = np.linalg.inv(I - delta * M)
             v = (1 - delta) * np.dot(v0, inv_part)
+
         return v
 
     def _calculate_expected_payoff(self, v: np.ndarray) -> np.ndarray:
@@ -133,11 +150,12 @@ class MemoryOneAnalysis:
                 freq = v[line]
 
                 # Add weighted payoff
-                payoff += freq * np.array(payoff_matrix)  # Ensuring payoff_matrix is np array for element-wise addition
-
+                payoff += freq * np.array(
+                    payoff_matrix)  # Ensuring payoff_matrix is np array for element-wise addition
         return payoff
 
-    def _get_payoff(self, group_size, k_mutants, resident_strategy: Strategy, mutant_strategy: Strategy) -> (float, float):
+    def _get_payoff(self, group_size, k_mutants, resident_strategy: Strategy, mutant_strategy: Strategy) -> (
+            float, float):
         strategies = (
                 [mutant_strategy] * k_mutants +
                 [resident_strategy] * (group_size - k_mutants)
@@ -173,7 +191,6 @@ class MemoryOneAnalysis:
             payoff_mutant = payoff[0]
             payoff_resident = payoff[-1]
 
-
         return payoff_resident, payoff_mutant, cooperation_rate
 
     def get_group_payoff(self, group_size, k_mutants, resident_strategy, mutant_strategy):
@@ -182,6 +199,8 @@ class MemoryOneAnalysis:
             self._group_payoff_cache[key] = self._get_payoff(
                 group_size, k_mutants, resident_strategy, mutant_strategy
             )
+        else:
+            self.cache_tracker[0] += 1
         return self._group_payoff_cache[key]
 
     def cooperation_rate(self, strategy: Strategy, delta: float = 1.0) -> float:
@@ -207,6 +226,29 @@ class MemoryOneAnalysis:
                 freq = v[idx]
                 coop += freq * sum(action)
         return coop / self.game.player_number
+
+    def print_cache_statistics(self):
+        """Stampa le statistiche di utilizzo di tutte le cache"""
+        cache_names = [
+            "group_payoff_cache",
+            "transition_cache",
+            "expected_payoff_cache",
+            "frequency_vector_cache",
+            "probability_first_round_cache"
+        ]
+
+        print("\n" + "=" * 60)
+        print("CACHE STATISTICS")
+        print("=" * 60)
+
+        total_hits = sum(self.cache_tracker)
+        print(f"Total cache hits: {total_hits}\n")
+
+        for i, (name, hits) in enumerate(zip(cache_names, self.cache_tracker)):
+            hits = int(hits)  # Tronca la parte decimale
+            print(f"{name:30} | Hits: {hits:8d}")
+
+        print("=" * 60)
 
 def bin_to_bool(mu_bin: str):
     """

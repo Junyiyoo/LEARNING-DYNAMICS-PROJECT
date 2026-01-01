@@ -31,6 +31,10 @@ class PrisonerDilemma(StochasticGame):
                         probs[1] = 1.0  # Prob to go to State 1
 
                     self.q[(s, k)] = probs
+        elif self.num_states == 1:
+            for s in range(self.num_states):
+                for k in range(self.player_number + 1):
+                    self.q[(s, k)] = np.array([1.0])
 
         # Setup Payoff Matrices (SI Eq. 3)
         # Assuming index 0=Cooperate, 1=Defect based on typical game theory convention
