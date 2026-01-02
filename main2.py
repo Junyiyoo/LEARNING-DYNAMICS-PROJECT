@@ -6,14 +6,15 @@ from matplotlib import pyplot as plt
 from EvolutionaryDynamics import EvolutionaryDynamics
 from MemoryOneAnalysis import MemoryOneAnalysis
 from PrisonerDilemma import PrisonerDilemma
+from PublicGoodGame import PublicGoodGame
 
-n_steps = 5000
-n_runs = 50
+n_steps = 50
+n_runs = 1
 
 
 
 
-game = PrisonerDilemma([2.0, 1.2],1, 0.001)
+game = PublicGoodGame([1.6, 1.2],1,0.001)
 coop_time_series = []
 freq = np.zeros(8)
 analyzer = MemoryOneAnalysis(game)

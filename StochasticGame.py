@@ -37,7 +37,8 @@ class StochasticGame:
         """
         raise NotImplementedError("Not implemented yet")
 
-
+    def generate_strategy(self):
+        return Strategy(self.num_states, self.player_number, self.epsilon)
 
 def bin_to_bool(mu_bin: str):
     """

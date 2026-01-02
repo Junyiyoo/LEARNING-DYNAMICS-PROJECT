@@ -193,8 +193,8 @@ class MemoryOneAnalysis:
 
         return payoff_resident, payoff_mutant, cooperation_rate
 
-    def get_group_payoff(self, group_size, k_mutants, resident_strategy, mutant_strategy):
-        key = (id(resident_strategy), id(mutant_strategy), k_mutants)
+    def get_group_payoff(self, group_size, k_mutants, resident_strategy: Strategy, mutant_strategy: Strategy) -> float:
+        key = (resident_strategy.strategy_ID, mutant_strategy.strategy_ID, k_mutants)
         if key not in self._group_payoff_cache:
             self._group_payoff_cache[key] = self._get_payoff(
                 group_size, k_mutants, resident_strategy, mutant_strategy

@@ -2,7 +2,6 @@ import random
 from typing import List
 
 import numpy as np
-from numpy.matlib import empty
 
 
 class Strategy:
@@ -17,7 +16,6 @@ class Strategy:
         self.no_prev_action = 1.0 if random.random() > 0.5 else 0.0
         self.strategy = []
         self.strategy_ID = ""
-
     def _create_strategy(self):
         strategy = np.zeros((self.states, self.players + 1))
         for s in range(self.states):
@@ -30,11 +28,13 @@ class Strategy:
         return strategy
 
     def get_cooperation_probability(self, state: int, prev_actions: List[int], self_player):
-        if empty(prev_actions):
+        if not prev_actions:
             return self.no_prev_action
         number_of_cooperator = prev_actions.count(1)
         return self._apply_execution_error(self.strategy[state][number_of_cooperator])
 
+    def set_always_defect(self):
+        self.strategy = np.zeros((self.states, self.players + 1))
 
     def _apply_execution_error(self, p: float) -> float:
         return (1 - self.epsilon) * p + self.epsilon * (1 - p)
@@ -48,7 +48,7 @@ class StrategyPrisonerDilemma(Strategy):
         self. strategy = [defective_strategy, cooperation_strategy]
         self._set_strategy_ID()
 
-    def set_allways_defect(self):
+    def set_always_defect(self):
         defective_strategy = np.zeros((self.states, self.players + 1))
         cooperation_strategy = np.zeros((self.states, self.players + 1))
         self.strategy = [defective_strategy, cooperation_strategy]
@@ -62,7 +62,7 @@ class StrategyPrisonerDilemma(Strategy):
         prev_actions.remove(self_action)
         opponents_actions = prev_actions
         number_of_cooperator = opponents_actions.count(1)
-        return self._apply_execution_error(self.strategy[self_action][state][number_of_cooperator])
+        return self._apply_execution_error(self.strategy[self_action][0][number_of_cooperator])
 
 
 
