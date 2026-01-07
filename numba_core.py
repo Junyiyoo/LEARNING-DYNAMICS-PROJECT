@@ -86,12 +86,12 @@ def solve_stationary_distribution(M):
     return v
 
 @njit(fastmath=True)
-def calc_pay_numba(strategies, q_vec, r1, r2, c):
+def calc_pay_numba(strategies, q_vec, r1, r2, c,epsilon):
     n = strategies.shape[0]
     num_states = 1 << (n+1)
 
     # Precompute strategy action probabilities (with error epsilon)
-    ep = 0.001
+    ep = epsilon
     str_prob = (1 - ep) * strategies + ep * (1 - strategies)
 
     pi_round = np.zeros((num_states, n))
@@ -171,7 +171,7 @@ def calc_pay_numba(strategies, q_vec, r1, r2, c):
     return pivec, avg_coop
 
 @njit(fastmath=True)
-def calc_rho_numba(s1_idx, s2_idx, pay_h, N, n, q_vec, r1, r2, c, beta, binom_matrix, all_strats):
+def calc_rho_numba(s1_idx, s2_idx, pay_h, N, n, q_vec, r1, r2, c, beta, binom_matrix, all_strats, epsilon):
     """
     Rho Calculation: Fixed index misalignment bug.
     """
@@ -189,7 +189,7 @@ def calc_rho_numba(s1_idx, s2_idx, pay_h, N, n, q_vec, r1, r2, c, beta, binom_ma
         for k in range(n_mut): group_strats[k] = st1
         for k in range(n_mut, n): group_strats[k] = st2
 
-        pi_vec, _ = calc_pay_numba(group_strats, q_vec, r1, r2, c)
+        pi_vec, _ = calc_pay_numba(group_strats, q_vec, r1, r2, c, epsilon)
         pay[n_mut, 0] = pi_vec[0]  # S1 (Mutant) payoff
         pay[n_mut, 1] = pi_vec[-1] # S2 (Resident) payoff
 
@@ -246,7 +246,7 @@ def calc_rho_numba(s1_idx, s2_idx, pay_h, N, n, q_vec, r1, r2, c, beta, binom_ma
     return rho
 
 @njit(fastmath=True)
-def evol_proc_numba(q_vec, r1, r2, c, beta, n_gen, N, gr_size, binom_matrix, all_strats, pay_h, coop_h, seed):
+def evol_proc_numba(q_vec, r1, r2, c, beta, n_gen, N, gr_size, binom_matrix, all_strats, pay_h, coop_h, seed, epsilon):
     np.random.seed(seed)
     n = gr_size
     ns = all_strats.shape[0]
@@ -256,7 +256,7 @@ def evol_proc_numba(q_vec, r1, r2, c, beta, n_gen, N, gr_size, binom_matrix, all
 
     for i in range(n_gen):
         mut = np.random.randint(0, ns)
-        rho = calc_rho_numba(mut, res, pay_h, N, n, q_vec, r1, r2, c, beta, binom_matrix, all_strats)
+        rho = calc_rho_numba(mut, res, pay_h, N, n, q_vec, r1, r2, c, beta, binom_matrix, all_strats,epsilon)
 
         if np.random.random() < rho:
             res = mut
